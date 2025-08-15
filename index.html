@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Quote Generator with Storage</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Dynamic Quote Generator</h1>
+            <p>Create, store, and manage your favorite quotes</p>
+        </header>
+
+        <main>
+            <!-- Quote Display Section -->
+            <section class="quote-display">
+                <div class="quote-card">
+                    <blockquote id="currentQuote">
+                        "Click 'Get Random Quote' to start exploring wisdom!"
+                    </blockquote>
+                    <cite id="currentAuthor">- Quote Generator</cite>
+                </div>
+                <button id="randomQuoteBtn" class="btn btn-primary">Get Random Quote</button>
+            </section>
+
+            <!-- Add New Quote Section -->
+            <section class="add-quote">
+                <h2>Add Your Own Quote</h2>
+                <form id="quoteForm">
+                    <div class="form-group">
+                        <label for="quoteText">Quote:</label>
+                        <textarea id="quoteText" placeholder="Enter your quote here..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="quoteAuthor">Author:</label>
+                        <input type="text" id="quoteAuthor" placeholder="Enter author name" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Add Quote</button>
+                </form>
+            </section>
+
+            <!-- Data Management Section -->
+            <section class="data-management">
+                <h2>Data Management</h2>
+                <div class="storage-controls">
+                    <button id="exportBtn" class="btn btn-secondary">Export Quotes (JSON)</button>
+                    <div class="import-section">
+                        <label for="importFile" class="btn btn-secondary">Import Quotes (JSON)</label>
+                        <input type="file" id="importFile" accept=".json" style="display: none;">
+                    </div>
+                    <button id="clearStorageBtn" class="btn btn-danger">Clear All Data</button>
+                </div>
+                <div class="storage-info">
+                    <p>Total Quotes: <span id="quoteCount">0</span></p>
+                    <p>Last Viewed: <span id="lastViewed">None</span></p>
+                </div>
+            </section>
+
+            <!-- All Quotes Display -->
+            <section class="all-quotes">
+                <h2>All Quotes</h2>
+                <div id="quotesList" class="quotes-list"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
