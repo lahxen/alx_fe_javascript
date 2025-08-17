@@ -538,6 +538,166 @@
             to { transform: translateX(100%); opacity: 0; }
         }
 
+        /* Step 4: Testing Panel Styles */
+        .testing-panel {
+            background: #f8f9fa;
+            border: 2px solid #007bff;
+            border-radius: 10px;
+            margin: 20px 0;
+            padding: 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .testing-header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .testing-header h3 {
+            margin: 0;
+            font-size: 1.1em;
+        }
+
+        .testing-content {
+            padding: 20px;
+        }
+
+        .testing-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .test-btn {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .full-test {
+            background: #007bff;
+            color: white;
+        }
+
+        .smoke-test {
+            background: #28a745;
+            color: white;
+        }
+
+        .report {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .integrity {
+            background: #6f42c1;
+            color: white;
+        }
+
+        .conflict {
+            background: #fd7e14;
+            color: white;
+        }
+
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .test-results {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .test-results h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+
+        #testOutput {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+
+        .verification-checklist {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+        }
+
+        .verification-checklist h4 {
+            margin: 0 0 15px 0;
+            color: #495057;
+        }
+
+        .checklist-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+
+        .checklist-item.passed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .checklist-item.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .checkbox {
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+
+        .checklist-item.passed .checkbox {
+            color: #28a745;
+        }
+
+        .checklist-item.failed .checkbox {
+            color: #dc3545;
+        }
+
+        .test-running {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
         /* Conflict History Panel */
         .conflict-history {
             background: #f8f9fa;
@@ -762,6 +922,50 @@
             <div>Last Action: <span id="lastAction">Page loaded</span></div>
         </div>
 
+        <!-- Step 4: Testing and Verification Panel -->
+        <div class="testing-panel" id="testingPanel">
+            <div class="testing-header">
+                <h3>🧪 Step 4: Testing & Verification</h3>
+                <button onclick="toggleTestingPanel()" class="toggle-btn" id="testToggleBtn">Show</button>
+            </div>
+            <div class="testing-content hidden" id="testingContent">
+                <div class="testing-controls">
+                    <button onclick="runFullTests()" class="test-btn full-test">🔬 Run Full Test Suite</button>
+                    <button onclick="runSmokeTests()" class="test-btn smoke-test">💨 Quick Smoke Test</button>
+                    <button onclick="showTestReport()" class="test-btn report">📊 View Test Report</button>
+                    <button onclick="verifyDataIntegrity()" class="test-btn integrity">🔒 Verify Data Integrity</button>
+                    <button onclick="simulateConflictScenario()" class="test-btn conflict">⚔️ Simulate Conflicts</button>
+                </div>
+                <div class="test-results" id="testResults">
+                    <h4>Test Results</h4>
+                    <div id="testOutput">No tests run yet. Click a test button to begin.</div>
+                </div>
+                <div class="verification-checklist" id="verificationChecklist">
+                    <h4>Verification Checklist</h4>
+                    <div class="checklist-items">
+                        <div class="checklist-item" id="check-sync">
+                            <span class="checkbox">⭕</span> Server Sync Functionality
+                        </div>
+                        <div class="checklist-item" id="check-conflicts">
+                            <span class="checkbox">⭕</span> Conflict Detection & Resolution
+                        </div>
+                        <div class="checklist-item" id="check-data-integrity">
+                            <span class="checkbox">⭕</span> Data Integrity & No Data Loss
+                        </div>
+                        <div class="checklist-item" id="check-merge">
+                            <span class="checkbox">⭕</span> Proper Data Merging
+                        </div>
+                        <div class="checklist-item" id="check-ui">
+                            <span class="checkbox">⭕</span> UI Response & Notifications
+                        </div>
+                        <div class="checklist-item" id="check-storage">
+                            <span class="checkbox">⭕</span> Storage Persistence
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- All Quotes Display -->
         <div class="quote-list">
             <h3>📝 All Your Quotes:</h3>
@@ -770,5 +974,6 @@
     </div>
 
     <script src="script.js"></script>
+    <script src="test-suite.js"></script>
 </body>
 </html>

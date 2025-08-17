@@ -723,6 +723,28 @@ window.addEventListener('DOMContentLoaded', function() {
     // Set up modern event listeners
     setupEventListeners();
     
+    // Run initial smoke test to verify functionality
+    setTimeout(async () => {
+        console.log("🧪 Running initial smoke test...");
+        const smokeTestPassed = await testSuite.runSmokeTests();
+        
+        if (smokeTestPassed) {
+            showAdvancedNotification(
+                "System Verification",
+                "All essential functions verified ✅",
+                "success",
+                3000
+            );
+        } else {
+            showAdvancedNotification(
+                "System Warning",
+                "Some functions may not be working correctly ⚠️",
+                "warning",
+                5000
+            );
+        }
+    }, 2000);
+    
     // Show welcome notification using new system
     showAdvancedNotification(
         "Welcome to Quote Generator!",
@@ -1986,6 +2008,253 @@ async function handleDataConflictsWithNotifications(serverQuotes) {
 // Replace the original handleDataConflicts function call
 const originalHandleDataConflicts = handleDataConflicts;
 handleDataConflicts = handleDataConflictsWithNotifications;
+
+// 🧪 STEP 4: TESTING AND VERIFICATION UI CONTROLS
+// ===============================================
+
+// Toggle testing panel visibility
+function toggleTestingPanel() {
+    const panel = document.getElementById('testingContent');
+    const toggleBtn = document.getElementById('testToggleBtn');
+    
+    if (!panel || !toggleBtn) return;
+    
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        toggleBtn.textContent = 'Hide';
+        console.log("🧪 Testing panel shown");
+    } else {
+        panel.classList.add('hidden');
+        toggleBtn.textContent = 'Show';
+        console.log("🧪 Testing panel hidden");
+    }
+}
+
+// Show test report in UI
+function showTestReport() {
+    const report = getTestReport();
+    const output = document.getElementById('testOutput');
+    
+    if (!output) return;
+    
+    if (!report) {
+        output.textContent = "No test report available. Run tests first.";
+        return;
+    }
+    
+    const reportText = `TEST REPORT - ${new Date(report.timestamp).toLocaleString()}
+===============================================
+Total Tests: ${report.summary.totalTests}
+Passed: ${report.summary.passedTests} (${report.summary.passRate})
+Failed: ${report.summary.failedTests}
+
+DETAILED RESULTS:
+${report.results.map(r => `${r.passed ? '✅' : '❌'} ${r.name}: ${r.details}`).join('\n')}
+===============================================`;
+    
+    output.textContent = reportText;
+    
+    // Update verification checklist based on test results
+    updateVerificationChecklist(report);
+    
+    console.log("📊 Test report displayed");
+}
+
+// Update verification checklist
+function updateVerificationChecklist(report) {
+    const checkItems = {
+        'check-sync': ['Server Data Fetch', 'Sync State Update', 'Network Error Handling'],
+        'check-conflicts': ['Conflict Detection', 'Manual Resolution Function', 'client-wins Resolution', 'server-wins Resolution', 'merge Resolution'],
+        'check-data-integrity': ['Data Validation', 'ID Uniqueness', 'Data Structure'],
+        'check-merge': ['Storage Save/Load', 'JSON Export'],
+        'check-ui': ['Display Update Performance', 'Category Population Performance'],
+        'check-storage': ['Storage Save', 'Storage Error Handling']
+    };
+    
+    Object.keys(checkItems).forEach(checkId => {
+        const element = document.getElementById(checkId);
+        if (!element) return;
+        
+        const relatedTests = checkItems[checkId];
+        const passedTests = report.results.filter(r => 
+            relatedTests.some(test => r.name.includes(test)) && r.passed
+        ).length;
+        const totalTests = report.results.filter(r => 
+            relatedTests.some(test => r.name.includes(test))
+        ).length;
+        
+        const checkbox = element.querySelector('.checkbox');
+        
+        if (totalTests === 0) {
+            // No related tests found
+            checkbox.textContent = '⭕';
+            element.classList.remove('passed', 'failed');
+        } else if (passedTests === totalTests) {
+            // All related tests passed
+            checkbox.textContent = '✅';
+            element.classList.remove('failed');
+            element.classList.add('passed');
+        } else {
+            // Some tests failed
+            checkbox.textContent = '❌';
+            element.classList.remove('passed');
+            element.classList.add('failed');
+        }
+    });
+}
+
+// Verify data integrity manually
+function verifyDataIntegrity() {
+    const output = document.getElementById('testOutput');
+    if (!output) return;
+    
+    output.classList.add('test-running');
+    output.textContent = "🔒 Verifying data integrity...\n";
+    
+    setTimeout(() => {
+        let results = "DATA INTEGRITY VERIFICATION\n";
+        results += "============================\n";
+        
+        // Check quote structure
+        const structureValid = quotes.every(quote => 
+            quote.hasOwnProperty('id') &&
+            quote.hasOwnProperty('text') &&
+            quote.hasOwnProperty('author') &&
+            quote.hasOwnProperty('category')
+        );
+        results += `✓ Quote Structure: ${structureValid ? 'VALID' : 'INVALID'}\n`;
+        
+        // Check ID uniqueness
+        const ids = quotes.map(q => q.id);
+        const uniqueIds = [...new Set(ids)];
+        const idsUnique = ids.length === uniqueIds.length;
+        results += `✓ ID Uniqueness: ${idsUnique ? 'VALID' : 'INVALID'}\n`;
+        
+        // Check data consistency
+        const validQuotes = quotes.filter(q => q.text && q.text.trim() && q.author && q.author.trim());
+        const dataConsistent = validQuotes.length === quotes.length;
+        results += `✓ Data Consistency: ${dataConsistent ? 'VALID' : 'INVALID'}\n`;
+        
+        // Check storage sync
+        const storageData = localStorage.getItem('quotes');
+        let storageSync = false;
+        try {
+            const parsedStorage = JSON.parse(storageData || '[]');
+            storageSync = parsedStorage.length === quotes.length;
+        } catch (error) {
+            storageSync = false;
+        }
+        results += `✓ Storage Sync: ${storageSync ? 'SYNCED' : 'OUT OF SYNC'}\n`;
+        
+        // Overall assessment
+        const allValid = structureValid && idsUnique && dataConsistent && storageSync;
+        results += `\n🔒 OVERALL: ${allValid ? 'DATA INTEGRITY VERIFIED ✅' : 'DATA INTEGRITY ISSUES FOUND ❌'}\n`;
+        
+        output.textContent = results;
+        output.classList.remove('test-running');
+        
+        // Show notification
+        showAdvancedNotification(
+            'Data Integrity Check',
+            allValid ? 'All data integrity checks passed' : 'Data integrity issues detected',
+            allValid ? 'success' : 'warning'
+        );
+        
+        console.log("🔒 Data integrity verification completed");
+    }, 1000);
+}
+
+// Simulate conflict scenario for testing
+function simulateConflictScenario() {
+    const output = document.getElementById('testOutput');
+    if (!output) return;
+    
+    output.classList.add('test-running');
+    output.textContent = "⚔️ Simulating conflict scenario...\n";
+    
+    setTimeout(() => {
+        // Create a conflict scenario
+        const testQuote = {
+            id: 'conflict_simulation',
+            text: 'Original local quote for testing',
+            author: 'Local Author',
+            category: 'testing',
+            lastModified: new Date().toISOString()
+        };
+        
+        const serverQuote = {
+            id: 'conflict_simulation',
+            text: 'Modified server quote for testing',
+            author: 'Server Author',
+            category: 'updated',
+            source: 'server',
+            lastModified: new Date().toISOString()
+        };
+        
+        // Add local quote
+        quotes.push(testQuote);
+        
+        // Simulate conflict detection
+        const conflicts = [{
+            local: testQuote,
+            server: serverQuote,
+            type: 'content_conflict'
+        }];
+        
+        // Show conflict notification
+        showConflictNotification(conflicts);
+        
+        let results = "CONFLICT SIMULATION COMPLETED\n";
+        results += "===============================\n";
+        results += `Local Version: "${testQuote.text}" by ${testQuote.author}\n`;
+        results += `Server Version: "${serverQuote.text}" by ${serverQuote.author}\n`;
+        results += `Conflict Type: ${conflicts[0].type}\n`;
+        results += `Status: Conflict notification shown\n`;
+        results += `Pending Conflicts: ${pendingConflicts.length}\n`;
+        results += "\n⚔️ Check the notification area for conflict resolution options!\n";
+        
+        output.textContent = results;
+        output.classList.remove('test-running');
+        
+        console.log("⚔️ Conflict scenario simulated");
+    }, 1500);
+}
+
+// Enhanced test runner that updates UI
+async function runTestsWithUI(testType = 'full') {
+    const output = document.getElementById('testOutput');
+    if (!output) return;
+    
+    output.classList.add('test-running');
+    output.textContent = `🧪 Running ${testType} tests...\nThis may take a few moments.\n\n`;
+    
+    try {
+        let result;
+        if (testType === 'smoke') {
+            result = await runSmokeTests();
+        } else {
+            result = await runFullTests();
+        }
+        
+        // Update UI with results
+        setTimeout(() => {
+            showTestReport();
+            output.classList.remove('test-running');
+        }, 500);
+        
+    } catch (error) {
+        output.textContent = `❌ Test execution failed: ${error.message}`;
+        output.classList.remove('test-running');
+        console.error("Test execution error:", error);
+    }
+}
+
+// Override global test functions to use UI
+const originalRunFullTests = window.runFullTests;
+const originalRunSmokeTests = window.runSmokeTests;
+
+window.runFullTests = () => runTestsWithUI('full');
+window.runSmokeTests = () => runTestsWithUI('smoke');
 
 // 🎯 LEARNING NOTES:
 // This file demonstrates key DOM manipulation concepts:
