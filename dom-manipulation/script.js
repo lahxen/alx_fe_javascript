@@ -133,7 +133,12 @@ function getRandomQuote() {
     console.log("🎲 Random quote displayed:", selectedQuote);
 }
 
-// 🎯 Get random quote by category
+// � Show random quote (alias for getRandomQuote for compatibility)
+function showRandomQuote() {
+    getRandomQuote();
+}
+
+// �🎯 Get random quote by category
 function getRandomQuoteByCategory(category) {
     const categoryQuotes = quotes.filter(quote => 
         quote.category && quote.category.toLowerCase() === category.toLowerCase()
