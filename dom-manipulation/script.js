@@ -4,7 +4,83 @@
 let quotes = [];
 let currentQuoteIndex = -1;
 
-// 📚 Default quotes to start with - each quote has text and category properties
+// 📚 Default quotes to start with - each quote has text and ca// 🎭 Show random quote (alias for getRandomQuote for compatibility)
+function showRandomQuote() {
+    getRandomQuote();
+}
+
+// 🖼️ Quote Display function - centralized quote display logic
+function quoteDisplay(quote, context = "general") {
+    if (!quote || typeof quote !== 'object') {
+        console.error("❌ Invalid quote object passed to quoteDisplay");
+        showMessage("Error: Invalid quote data", "error");
+        return false;
+    }
+    
+    // Validate quote structure
+    if (!quote.text || !quote.author) {
+        console.error("❌ Quote missing required fields (text, author)");
+        showMessage("Error: Quote missing required information", "error");
+        return false;
+    }
+    
+    try {
+        // Update main quote display elements
+        const quoteElement = document.getElementById('currentQuote');
+        const authorElement = document.getElementById('currentAuthor');
+        const categoryElement = document.getElementById('currentCategory');
+        
+        if (quoteElement) {
+            quoteElement.textContent = `"${quote.text}"`;
+        }
+        
+        if (authorElement) {
+            authorElement.textContent = `- ${quote.author}`;
+        }
+        
+        // Show category if available and element exists
+        if (quote.category && categoryElement) {
+            categoryElement.textContent = `Category: ${quote.category}`;
+            categoryElement.style.display = 'block';
+        } else if (categoryElement) {
+            categoryElement.style.display = 'none';
+        }
+        
+        // Add visual effects for enhanced UX
+        if (quoteElement) {
+            quoteElement.style.opacity = '0';
+            setTimeout(() => {
+                quoteElement.style.transition = 'opacity 0.5s ease-in-out';
+                quoteElement.style.opacity = '1';
+            }, 100);
+        }
+        
+        // Save to session storage for persistence
+        sessionStorage.setItem('lastViewedQuote', JSON.stringify(quote));
+        sessionStorage.setItem('lastDisplayContext', context);
+        
+        // Log the display action
+        console.log(`🖼️ Quote displayed (${context}):`, {
+            text: quote.text.substring(0, 50) + "...",
+            author: quote.author,
+            category: quote.category || "uncategorized",
+            context: context
+        });
+        
+        // Update last action
+        updateLastAction(`Displayed quote: ${context}`);
+        
+        return true;
+        
+    } catch (error) {
+        console.error("❌ Error in quoteDisplay:", error);
+        showMessage("Error displaying quote", "error");
+        return false;
+    }
+}
+
+// 🎯 Get random quote by category
+function getRandomQuoteByCategory(category) {properties
 const defaultQuotes = [
     { 
         text: "The only way to do great work is to love what you do.", 
@@ -189,23 +265,13 @@ function getRandomQuote() {
     currentQuoteIndex = Math.floor(Math.random() * quotes.length);
     const selectedQuote = quotes[currentQuoteIndex];
 
-    // DOM Manipulation: Update the display elements
-    document.getElementById('currentQuote').textContent = `"${selectedQuote.text}"`;
-    document.getElementById('currentAuthor').textContent = `- ${selectedQuote.author}`;
+    // Use centralized quote display function
+    const displaySuccess = quoteDisplay(selectedQuote, "random");
     
-    // Show category if available
-    if (selectedQuote.category) {
-        const categoryElement = document.getElementById('currentCategory');
-        if (categoryElement) {
-            categoryElement.textContent = `Category: ${selectedQuote.category}`;
-        }
+    if (displaySuccess) {
+        updateLastAction("Showed random quote");
+        console.log("🎲 Random quote selected and displayed");
     }
-    
-    // Save to session storage (temporary storage for this session)
-    sessionStorage.setItem('lastViewedQuote', JSON.stringify(selectedQuote));
-    updateLastAction("Showed random quote");
-    
-    console.log("🎲 Random quote displayed:", selectedQuote);
 }
 
 // � Show random quote (alias for getRandomQuote for compatibility)
@@ -227,18 +293,13 @@ function getRandomQuoteByCategory(category) {
     const randomIndex = Math.floor(Math.random() * categoryQuotes.length);
     const selectedQuote = categoryQuotes[randomIndex];
     
-    // Update display
-    document.getElementById('currentQuote').textContent = `"${selectedQuote.text}"`;
-    document.getElementById('currentAuthor').textContent = `- ${selectedQuote.author}`;
+    // Use centralized quote display function
+    const displaySuccess = quoteDisplay(selectedQuote, `category: ${category}`);
     
-    // Show category
-    const categoryElement = document.getElementById('currentCategory');
-    if (categoryElement) {
-        categoryElement.textContent = `Category: ${selectedQuote.category}`;
+    if (displaySuccess) {
+        updateLastAction(`Showed ${category} quote`);
+        console.log(`🎯 Category quote selected and displayed (${category})`);
     }
-    
-    updateLastAction(`Showed ${category} quote`);
-    console.log(`🎯 Category quote displayed (${category}):`, selectedQuote);
 }
 
 // 🏷️ Populate categories dropdown dynamically
@@ -785,22 +846,52 @@ function getUniqueCategories() {
 
 // 👁️ Show a specific quote
 function showSpecificQuote(index) {
-    const quote = quotes[index];
-    document.getElementById('currentQuote').textContent = `"${quote.text}"`;
-    document.getElementById('currentAuthor').textContent = `- ${quote.author}`;
-    
-    // Show category if available
-    const categoryElement = document.getElementById('currentCategory');
-    if (categoryElement && quote.category) {
-        categoryElement.textContent = `Category: ${quote.category}`;
+    if (index < 0 || index >= quotes.length) {
+        showMessage("Invalid quote index", "error");
+        return;
     }
     
-    // Scroll to top to see the quote
-    document.querySelector('.quote-display').scrollIntoView({ behavior: 'smooth' });
-    updateLastAction("Showed specific quote");
+    const quote = quotes[index];
+    
+    // Use centralized quote display function
+    const displaySuccess = quoteDisplay(quote, `specific: ${index}`);
+    
+    if (displaySuccess) {
+        // Scroll to top to see the quote
+        const quoteDisplayElement = document.querySelector('.quote-display');
+        if (quoteDisplayElement) {
+            quoteDisplayElement.scrollIntoView({ behavior: 'smooth' });
+        }
+        updateLastAction("Showed specific quote");
+    }
 }
 
-// 🗑️ Delete a specific quote
+// � Restore last viewed quote from session storage
+function restoreLastViewedQuote() {
+    try {
+        const lastQuote = sessionStorage.getItem('lastViewedQuote');
+        const lastContext = sessionStorage.getItem('lastDisplayContext');
+        
+        if (lastQuote) {
+            const quote = JSON.parse(lastQuote);
+            const context = lastContext || "restored";
+            
+            const displaySuccess = quoteDisplay(quote, `${context} (restored)`);
+            
+            if (displaySuccess) {
+                console.log("🔄 Last viewed quote restored from session storage");
+                updateLastAction("Restored last viewed quote");
+                return true;
+            }
+        }
+    } catch (error) {
+        console.error("❌ Error restoring last viewed quote:", error);
+    }
+    
+    return false;
+}
+
+// �🗑️ Delete a specific quote
 function deleteQuote(index) {
     const quote = quotes[index];
     if (confirm(`Delete quote by ${quote.author}?`)) {
