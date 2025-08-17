@@ -312,6 +312,71 @@ async function fetchQuotesFromServer() {
     return await fetchDataFromServer();
 }
 
+// 🔄 Sync quotes with server (comprehensive sync function)
+async function syncQuotes() {
+    console.log("🔄 Starting quote synchronization...");
+    
+    // Update sync statistics
+    serverSyncState.syncStats.totalSyncs++;
+    
+    try {
+        // Show user notification
+        if (typeof showAdvancedNotification === 'function') {
+            showAdvancedNotification(
+                'Sync Started',
+                'Synchronizing quotes with server...',
+                'sync',
+                2000
+            );
+        }
+        
+        // Update sync status
+        updateSyncStatus("Synchronizing quotes...");
+        
+        // Fetch latest quotes from server
+        await fetchQuotesFromServer();
+        
+        // Update success statistics
+        serverSyncState.syncStats.successfulSyncs++;
+        
+        // Show success notification
+        if (typeof showAdvancedNotification === 'function') {
+            showAdvancedNotification(
+                'Sync Complete',
+                'Quotes synchronized successfully!',
+                'success',
+                3000
+            );
+        }
+        
+        updateSyncStatus("Sync completed successfully");
+        console.log("✅ Quote synchronization completed successfully");
+        
+        return true;
+        
+    } catch (error) {
+        // Update failure statistics
+        serverSyncState.syncStats.failedSyncs++;
+        
+        console.error("❌ Quote synchronization failed:", error);
+        updateSyncStatus(`Sync failed: ${error.message}`);
+        
+        // Show error notification
+        if (typeof showAdvancedNotification === 'function') {
+            showAdvancedNotification(
+                'Sync Failed',
+                `Synchronization error: ${error.message}`,
+                'error',
+                5000
+            );
+        } else if (typeof showMessage === 'function') {
+            showMessage(`Quote sync failed: ${error.message}`, "error");
+        }
+        
+        return false;
+    }
+}
+
 // �📤 Send data to server (simulate with JSONPlaceholder)
 async function sendDataToServer(quote) {
     if (!serverSyncState.isOnline) {
@@ -1570,6 +1635,7 @@ window.inspectQuotesArray = inspectQuotesArray;
 
 // Make server sync functions available globally
 window.fetchQuotesFromServer = fetchQuotesFromServer;
+window.syncQuotes = syncQuotes;
 
 // 🔔 STEP 3: CONFLICT RESOLUTION & NOTIFICATION SYSTEM
 // ====================================================
