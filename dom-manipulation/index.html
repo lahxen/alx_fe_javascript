@@ -237,6 +237,47 @@
         #fileInput {
             display: none;
         }
+
+        .sync-status {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+            font-size: 0.9rem;
+        }
+
+        .sync-status-header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .sync-controls {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .sync-controls button {
+            margin: 5px;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+
+        #syncStatus {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .conflict-strategy {
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .conflict-strategy select {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -258,6 +299,25 @@
             <button onclick="document.getElementById('fileInput').click()">📁 Import Quotes</button>
             <button onclick="clearAllQuotes()">🗑️ Clear All</button>
             <button onclick="inspectQuotesArray()">🔍 Inspect Array</button>
+        </div>
+
+        <!-- Server Synchronization Controls -->
+        <div class="sync-status">
+            <div class="sync-status-header">
+                <strong>🌐 Server Sync Status:</strong> <span id="syncStatus">Initializing...</span>
+            </div>
+            <div class="sync-controls">
+                <button onclick="triggerManualSync()">🔄 Manual Sync</button>
+                <button onclick="updateOnlineStatus()">📡 Check Connection</button>
+            </div>
+            <div class="conflict-strategy">
+                <label for="conflictStrategy">⚖️ Conflict Resolution:</label>
+                <select id="conflictStrategy" onchange="setConflictResolutionStrategy(this.value)">
+                    <option value="client-wins">Client Wins</option>
+                    <option value="server-wins">Server Wins</option>
+                    <option value="merge">Merge</option>
+                </select>
+            </div>
         </div>
 
         <!-- Category Filter Dropdown -->

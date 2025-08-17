@@ -166,6 +166,387 @@ function checkQuotesArrayStructure() {
     return validQuotes.length === quotes.length;
 }
 
+// 🌐 SERVER SYNCHRONIZATION FUNCTIONALITY
+// =====================================
+
+// Server configuration for JSONPlaceholder simulation
+const SERVER_CONFIG = {
+    BASE_URL: 'https://jsonplaceholder.typicode.com',
+    ENDPOINTS: {
+        POSTS: '/posts',
+        USERS: '/users'
+    },
+    SYNC_INTERVAL: 30000, // 30 seconds
+    TIMEOUT: 10000 // 10 seconds
+};
+
+// Global sync state
+let serverSyncState = {
+    isOnline: navigator.onLine,
+    lastSyncTime: null,
+    syncInterval: null,
+    pendingChanges: [],
+    conflictResolutionStrategy: 'client-wins', // 'client-wins', 'server-wins', 'merge'
+    isSyncing: false
+};
+
+// 🌐 Initialize server synchronization
+function initializeServerSync() {
+    console.log("🌐 Initializing server synchronization...");
+    
+    // Check online status
+    updateOnlineStatus();
+    
+    // Set up online/offline event listeners
+    window.addEventListener('online', handleOnlineEvent);
+    window.addEventListener('offline', handleOfflineEvent);
+    
+    // Start periodic sync if online
+    if (serverSyncState.isOnline) {
+        startPeriodicSync();
+    }
+    
+    // Load server data on first run
+    fetchDataFromServer();
+    
+    console.log("✅ Server sync initialized");
+}
+
+// 📡 Fetch data from server (simulate with JSONPlaceholder)
+async function fetchDataFromServer() {
+    if (serverSyncState.isSyncing || !serverSyncState.isOnline) {
+        console.log("⏸️ Sync skipped: already syncing or offline");
+        return;
+    }
+    
+    serverSyncState.isSyncing = true;
+    updateSyncStatus("Fetching from server...");
+    
+    try {
+        console.log("📡 Fetching data from server...");
+        
+        // Simulate fetching quotes data using JSONPlaceholder posts
+        const response = await fetch(`${SERVER_CONFIG.BASE_URL}${SERVER_CONFIG.ENDPOINTS.POSTS}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            signal: AbortSignal.timeout(SERVER_CONFIG.TIMEOUT)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Server response: ${response.status}`);
+        }
+        
+        const serverPosts = await response.json();
+        
+        // Transform JSONPlaceholder posts into quote format
+        const serverQuotes = serverPosts.slice(0, 3).map((post, index) => ({
+            text: post.title,
+            author: `Server User ${post.userId}`,
+            category: index === 0 ? 'server' : index === 1 ? 'remote' : 'api',
+            id: `server_${post.id}`,
+            serverId: post.id,
+            lastModified: new Date().toISOString(),
+            source: 'server'
+        }));
+        
+        console.log("📡 Server data received:", serverQuotes);
+        
+        // Handle potential conflicts and merge data
+        await handleDataConflicts(serverQuotes);
+        
+        serverSyncState.lastSyncTime = new Date().toISOString();
+        updateSyncStatus("Sync completed");
+        
+        console.log("✅ Server sync completed successfully");
+        
+    } catch (error) {
+        console.error("❌ Server sync failed:", error);
+        updateSyncStatus(`Sync failed: ${error.message}`);
+        showMessage(`Server sync failed: ${error.message}`, "error");
+    } finally {
+        serverSyncState.isSyncing = false;
+    }
+}
+
+// 📤 Send data to server (simulate with JSONPlaceholder)
+async function sendDataToServer(quote) {
+    if (!serverSyncState.isOnline) {
+        // Queue for later sync
+        serverSyncState.pendingChanges.push({
+            action: 'create',
+            data: quote,
+            timestamp: new Date().toISOString()
+        });
+        console.log("📋 Change queued for later sync:", quote);
+        return;
+    }
+    
+    try {
+        console.log("📤 Sending data to server...", quote);
+        
+        // Simulate posting to server using JSONPlaceholder
+        const response = await fetch(`${SERVER_CONFIG.BASE_URL}${SERVER_CONFIG.ENDPOINTS.POSTS}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                title: quote.text,
+                body: `Author: ${quote.author}, Category: ${quote.category}`,
+                userId: 1
+            }),
+            signal: AbortSignal.timeout(SERVER_CONFIG.TIMEOUT)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Server response: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log("✅ Data sent to server successfully:", result);
+        
+        // Update quote with server ID
+        quote.serverId = result.id;
+        quote.lastModified = new Date().toISOString();
+        
+        updateSyncStatus("Data synced to server");
+        
+    } catch (error) {
+        console.error("❌ Failed to send data to server:", error);
+        
+        // Queue for retry
+        serverSyncState.pendingChanges.push({
+            action: 'create',
+            data: quote,
+            timestamp: new Date().toISOString()
+        });
+        
+        updateSyncStatus(`Upload failed: ${error.message}`);
+    }
+}
+
+// ⚖️ Handle data conflicts between local and server
+async function handleDataConflicts(serverQuotes) {
+    console.log("⚖️ Checking for data conflicts...");
+    
+    const localQuotes = quotes.filter(q => q.source !== 'server');
+    const conflictsDetected = [];
+    
+    // Check for conflicts (same ID but different content)
+    serverQuotes.forEach(serverQuote => {
+        const localQuote = quotes.find(q => q.id === serverQuote.id || q.serverId === serverQuote.serverId);
+        
+        if (localQuote && (
+            localQuote.text !== serverQuote.text ||
+            localQuote.author !== serverQuote.author ||
+            localQuote.category !== serverQuote.category
+        )) {
+            conflictsDetected.push({
+                local: localQuote,
+                server: serverQuote,
+                type: 'content_conflict'
+            });
+        }
+    });
+    
+    if (conflictsDetected.length > 0) {
+        console.log(`⚠️ ${conflictsDetected.length} conflicts detected`);
+        await resolveConflicts(conflictsDetected);
+    }
+    
+    // Merge server quotes
+    const mergedQuotes = await mergeServerData(serverQuotes);
+    
+    // Update local storage
+    saveQuotesToStorage();
+    
+    // Refresh display
+    populateCategories();
+    updateDisplay();
+    
+    console.log("✅ Data conflicts resolved and merged");
+}
+
+// 🔧 Resolve conflicts based on strategy
+async function resolveConflicts(conflicts) {
+    console.log(`🔧 Resolving ${conflicts.length} conflicts using strategy: ${serverSyncState.conflictResolutionStrategy}`);
+    
+    conflicts.forEach(conflict => {
+        const { local, server } = conflict;
+        
+        switch (serverSyncState.conflictResolutionStrategy) {
+            case 'client-wins':
+                console.log("📱 Client wins - keeping local version");
+                // Keep local version, mark server quote with different ID
+                server.id = `${server.id}_server_copy`;
+                break;
+                
+            case 'server-wins':
+                console.log("🌐 Server wins - accepting server version");
+                // Replace local with server version
+                const localIndex = quotes.findIndex(q => q.id === local.id);
+                if (localIndex !== -1) {
+                    quotes[localIndex] = { ...server, id: local.id };
+                }
+                break;
+                
+            case 'merge':
+                console.log("🔀 Merging versions");
+                // Create merged version with timestamp suffix
+                const mergedQuote = {
+                    ...local,
+                    text: `${local.text} [Merged with: ${server.text}]`,
+                    lastModified: new Date().toISOString(),
+                    mergedFrom: [local.id, server.id]
+                };
+                
+                const mergeIndex = quotes.findIndex(q => q.id === local.id);
+                if (mergeIndex !== -1) {
+                    quotes[mergeIndex] = mergedQuote;
+                }
+                break;
+        }
+    });
+}
+
+// 🔀 Merge server data with local data
+async function mergeServerData(serverQuotes) {
+    console.log("🔀 Merging server data with local data...");
+    
+    serverQuotes.forEach(serverQuote => {
+        const existingQuoteIndex = quotes.findIndex(q => 
+            q.id === serverQuote.id || 
+            q.serverId === serverQuote.serverId ||
+            (q.text === serverQuote.text && q.author === serverQuote.author)
+        );
+        
+        if (existingQuoteIndex === -1) {
+            // New quote from server - add it
+            quotes.push(serverQuote);
+            console.log("➕ Added new quote from server:", serverQuote.text.substring(0, 30) + "...");
+        } else {
+            // Quote exists - update timestamp
+            quotes[existingQuoteIndex].lastModified = new Date().toISOString();
+            console.log("🔄 Updated existing quote from server");
+        }
+    });
+    
+    return quotes;
+}
+
+// 📊 Update sync status display
+function updateSyncStatus(status) {
+    const statusElement = document.getElementById('syncStatus');
+    if (statusElement) {
+        statusElement.textContent = status;
+        statusElement.style.color = status.includes('failed') || status.includes('error') ? '#dc3545' : '#28a745';
+    }
+    
+    updateLastAction(`Sync: ${status}`);
+    console.log(`📊 Sync status: ${status}`);
+}
+
+// 🌐 Handle online event
+function handleOnlineEvent() {
+    console.log("🌐 Connection restored - going online");
+    serverSyncState.isOnline = true;
+    updateSyncStatus("Online - sync active");
+    
+    // Resume periodic sync
+    startPeriodicSync();
+    
+    // Process pending changes
+    processPendingChanges();
+    
+    showMessage("Connection restored! Syncing data...", "success");
+}
+
+// 📵 Handle offline event
+function handleOfflineEvent() {
+    console.log("📵 Connection lost - going offline");
+    serverSyncState.isOnline = false;
+    updateSyncStatus("Offline - changes queued");
+    
+    // Stop periodic sync
+    stopPeriodicSync();
+    
+    showMessage("You're offline. Changes will sync when connection is restored.", "error");
+}
+
+// ⏰ Start periodic synchronization
+function startPeriodicSync() {
+    if (serverSyncState.syncInterval) {
+        clearInterval(serverSyncState.syncInterval);
+    }
+    
+    serverSyncState.syncInterval = setInterval(() => {
+        console.log("⏰ Periodic sync triggered");
+        fetchDataFromServer();
+    }, SERVER_CONFIG.SYNC_INTERVAL);
+    
+    console.log(`⏰ Periodic sync started (${SERVER_CONFIG.SYNC_INTERVAL}ms interval)`);
+}
+
+// ⏹️ Stop periodic synchronization
+function stopPeriodicSync() {
+    if (serverSyncState.syncInterval) {
+        clearInterval(serverSyncState.syncInterval);
+        serverSyncState.syncInterval = null;
+        console.log("⏹️ Periodic sync stopped");
+    }
+}
+
+// 📋 Process pending changes when back online
+async function processPendingChanges() {
+    if (serverSyncState.pendingChanges.length === 0) {
+        console.log("📋 No pending changes to process");
+        return;
+    }
+    
+    console.log(`📋 Processing ${serverSyncState.pendingChanges.length} pending changes...`);
+    
+    for (const change of serverSyncState.pendingChanges) {
+        try {
+            await sendDataToServer(change.data);
+        } catch (error) {
+            console.error("❌ Failed to process pending change:", error);
+        }
+    }
+    
+    // Clear processed changes
+    serverSyncState.pendingChanges = [];
+    console.log("✅ All pending changes processed");
+}
+
+// 📡 Update online status
+function updateOnlineStatus() {
+    serverSyncState.isOnline = navigator.onLine;
+    const status = serverSyncState.isOnline ? "Online" : "Offline";
+    updateSyncStatus(status);
+    console.log(`📡 Network status: ${status}`);
+}
+
+// 🔄 Manual sync trigger
+function triggerManualSync() {
+    console.log("🔄 Manual sync triggered by user");
+    updateSyncStatus("Manual sync in progress...");
+    fetchDataFromServer();
+}
+
+// ⚙️ Change conflict resolution strategy
+function setConflictResolutionStrategy(strategy) {
+    if (['client-wins', 'server-wins', 'merge'].includes(strategy)) {
+        serverSyncState.conflictResolutionStrategy = strategy;
+        localStorage.setItem('conflictResolutionStrategy', strategy);
+        console.log(`⚙️ Conflict resolution strategy set to: ${strategy}`);
+        showMessage(`Conflict resolution set to: ${strategy}`, "success");
+    } else {
+        console.error("❌ Invalid conflict resolution strategy:", strategy);
+    }
+}
+
 // 🚀 Initialize the app when page loads
 window.addEventListener('DOMContentLoaded', function() {
     console.log("🚀 Initializing Quote Generator...");
@@ -177,6 +558,9 @@ window.addEventListener('DOMContentLoaded', function() {
     
     // Populate category dropdown
     populateCategories();
+    
+    // Initialize server synchronization
+    initializeServerSync();
     
     // Set up modern event listeners
     setupEventListeners();
@@ -602,6 +986,9 @@ function addQuote() {
     // Update the display
     updateDisplay();
     hideAddForm();
+    
+    // Sync with server
+    sendDataToServer(newQuote);
     
     showMessage(`Quote by ${quoteAuthor} added successfully in category: ${quoteCategory}!`, "success");
     updateLastAction("Added new quote");
