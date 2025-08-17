@@ -166,8 +166,59 @@ function getRandomQuoteByCategory(category) {
     console.log(`🎯 Category quote displayed (${category}):`, selectedQuote);
 }
 
+// 🔨 Create the add quote form dynamically
+function createAddQuoteForm() {
+    // Check if form already exists
+    if (document.getElementById('addQuoteForm')) {
+        console.log("Add quote form already exists");
+        return;
+    }
+
+    // Create the form container
+    const formContainer = document.createElement('div');
+    formContainer.id = 'addQuoteForm';
+    formContainer.className = 'add-quote hidden';
+    
+    // Create form HTML content
+    formContainer.innerHTML = `
+        <h3>Add Your Own Quote</h3>
+        <div class="form-group">
+            <label for="quoteText">Quote:</label>
+            <textarea id="quoteText" placeholder="Enter your quote here..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="quoteAuthor">Author:</label>
+            <input type="text" id="quoteAuthor" placeholder="Enter author name">
+        </div>
+        <div class="form-group">
+            <label for="quoteCategory">Category:</label>
+            <input type="text" id="quoteCategory" placeholder="Enter category (e.g., motivation, wisdom, life)">
+        </div>
+        <button onclick="addQuote()">✅ Save Quote</button>
+        <button onclick="hideAddForm()">❌ Cancel</button>
+    `;
+    
+    // Find a good place to insert the form (after controls section)
+    const container = document.querySelector('.container');
+    const controls = document.querySelector('.controls');
+    
+    if (container && controls) {
+        // Insert after controls section
+        container.insertBefore(formContainer, controls.nextSibling);
+    } else {
+        // Fallback: append to body
+        document.body.appendChild(formContainer);
+    }
+    
+    console.log("✅ Add quote form created dynamically");
+    updateLastAction("Created add quote form");
+}
+
 // ➕ Show the add quote form
 function showAddForm() {
+    // Ensure form exists first
+    createAddQuoteForm();
+    
     // DOM Manipulation: Show hidden form
     document.getElementById('addQuoteForm').style.display = 'block';
     document.getElementById('quoteText').focus(); // Focus on first input
