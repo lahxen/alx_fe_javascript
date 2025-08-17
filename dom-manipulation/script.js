@@ -184,7 +184,14 @@ const SERVER_CONFIG = {
     SYNC_INTERVAL: 15000, // 15 seconds for more frequent sync
     TIMEOUT: 10000, // 10 seconds
     MAX_QUOTES_FROM_SERVER: 5, // Limit server quotes for demo
-    SYNC_CHECK_INTERVAL: 5000 // Check for sync every 5 seconds
+    SYNC_CHECK_INTERVAL: 5000, // Check for sync every 5 seconds
+    
+    // Complete URLs for convenience
+    FULL_URLS: {
+        POSTS: 'https://jsonplaceholder.typicode.com/posts',
+        USERS: 'https://jsonplaceholder.typicode.com/users',
+        COMMENTS: 'https://jsonplaceholder.typicode.com/comments'
+    }
 };
 
 // Global sync state
@@ -255,7 +262,7 @@ async function fetchDataFromServer() {
         console.log("📡 Fetching data from server...");
         
         // Simulate fetching quotes data using JSONPlaceholder posts
-        const response = await fetch(`${SERVER_CONFIG.BASE_URL}${SERVER_CONFIG.ENDPOINTS.POSTS}`, {
+        const response = await fetch(SERVER_CONFIG.FULL_URLS.POSTS, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -322,7 +329,7 @@ async function sendDataToServer(quote) {
         console.log("📤 Sending data to server...", quote);
         
         // Simulate posting to server using JSONPlaceholder
-        const response = await fetch(`${SERVER_CONFIG.BASE_URL}${SERVER_CONFIG.ENDPOINTS.POSTS}`, {
+        const response = await fetch(SERVER_CONFIG.FULL_URLS.POSTS, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -438,14 +445,14 @@ function startDataSyncChecking() {
 // 🔍 Check for server data changes without full sync
 async function checkServerDataChanges() {
     try {
-        const response = await fetch(`${SERVER_CONFIG.BASE_URL}${SERVER_CONFIG.ENDPOINTS.POSTS}`, {
+        const response = await fetch(SERVER_CONFIG.FULL_URLS.POSTS, {
             method: 'HEAD', // Just check headers
             signal: AbortSignal.timeout(5000) // Shorter timeout for checks
         });
         
         if (response.ok) {
             // Perform a quick data check
-            const quickResponse = await fetch(`${SERVER_CONFIG.BASE_URL}${SERVER_CONFIG.ENDPOINTS.POSTS}?_limit=1`, {
+            const quickResponse = await fetch(`${SERVER_CONFIG.FULL_URLS.POSTS}?_limit=1`, {
                 signal: AbortSignal.timeout(5000)
             });
             
