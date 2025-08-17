@@ -349,6 +349,9 @@ async function syncQuotes() {
             );
         }
         
+        // Show alert confirmation
+        alert("Quotes synced with server!");
+        
         updateSyncStatus("Sync completed successfully");
         console.log("✅ Quote synchronization completed successfully");
         
