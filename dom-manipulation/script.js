@@ -299,7 +299,13 @@ async function fetchDataFromServer() {
     }
 }
 
-// 📤 Send data to server (simulate with JSONPlaceholder)
+// � Fetch quotes specifically from server (alias for fetchDataFromServer)
+async function fetchQuotesFromServer() {
+    console.log("📥 Fetching quotes from server...");
+    return await fetchDataFromServer();
+}
+
+// �📤 Send data to server (simulate with JSONPlaceholder)
 async function sendDataToServer(quote) {
     if (!serverSyncState.isOnline) {
         // Queue for later sync
@@ -1554,6 +1560,9 @@ function inspectQuotesArray() {
 
 // Make inspection function available globally
 window.inspectQuotesArray = inspectQuotesArray;
+
+// Make server sync functions available globally
+window.fetchQuotesFromServer = fetchQuotesFromServer;
 
 // 🔔 STEP 3: CONFLICT RESOLUTION & NOTIFICATION SYSTEM
 // ====================================================
