@@ -269,6 +269,341 @@
         }
 
         .conflict-strategy {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .sync-statistics {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #cce7ff;
+            margin-top: 15px;
+        }
+
+        .sync-statistics h4 {
+            margin: 0 0 15px 0;
+            text-align: center;
+            color: #0066cc;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            font-size: 0.9em;
+        }
+
+        .stats-grid div {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stats-grid span {
+            font-weight: bold;
+            color: #0066cc;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Conflict Resolution Modal */
+        .conflict-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .conflict-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .conflict-header {
+            background: #ff6b6b;
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .conflict-header h3 {
+            margin: 0;
+            font-size: 1.2em;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .conflict-body {
+            padding: 20px;
+        }
+
+        .conflict-preview {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .local-version, .server-version {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .local-version {
+            border-color: #007bff;
+            background: #f8f9ff;
+        }
+
+        .server-version {
+            border-color: #28a745;
+            background: #f8fff8;
+        }
+
+        .local-version h4, .server-version h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .manual-resolution {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .resolution-btn {
+            display: inline-block;
+            margin: 5px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .local-btn {
+            background: #007bff;
+            color: white;
+        }
+
+        .server-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .merge-btn {
+            background: #fd7e14;
+            color: white;
+        }
+
+        .resolution-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Notification Toast System */
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1100;
+            max-width: 350px;
+        }
+
+        .notification {
+            background: white;
+            border-left: 4px solid #007bff;
+            border-radius: 6px;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateX(100%);
+            animation: slideIn 0.3s ease forwards;
+        }
+
+        .notification.success {
+            border-left-color: #28a745;
+        }
+
+        .notification.warning {
+            border-left-color: #ffc107;
+        }
+
+        .notification.error {
+            border-left-color: #dc3545;
+        }
+
+        .notification.conflict {
+            border-left-color: #ff6b6b;
+            background: #fff5f5;
+        }
+
+        @keyframes slideIn {
+            to { transform: translateX(0); }
+        }
+
+        .notification-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .notification-body {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2em;
+            color: #999;
+        }
+
+        .notification-actions {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .notification-action-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            margin: 0 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .notification-action-btn:hover {
+            background: #0056b3;
+        }
+
+        .manual-resolve-btn {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .manual-resolve-btn:hover {
+            background: #e0a800;
+        }
+
+        .auto-resolve-btn {
+            background: #28a745;
+        }
+
+        .auto-resolve-btn:hover {
+            background: #1e7e34;
+        }
+
+        @keyframes slideOut {
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        /* Conflict History Panel */
+        .conflict-history {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin: 20px 0;
+            padding: 0;
+        }
+
+        .conflict-history-header {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .conflict-history-header h4 {
+            margin: 0;
+            color: #495057;
+        }
+
+        .toggle-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .conflict-history-list {
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .conflict-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .conflict-item-header {
+            font-weight: bold;
+            color: #dc3545;
+            margin-bottom: 5px;
+        }
+
+        .conflict-item-details {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .no-conflicts {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            margin: 20px 0;
+        }
+
+        .conflict-strategy {
             margin: 10px 0;
             text-align: center;
         }
@@ -309,14 +644,25 @@
             <div class="sync-controls">
                 <button onclick="triggerManualSync()">🔄 Manual Sync</button>
                 <button onclick="updateOnlineStatus()">📡 Check Connection</button>
+                <button onclick="displaySyncStatistics()">📊 Sync Stats</button>
+                <button onclick="toggleConflictHistory()">📋 Conflict History</button>
             </div>
             <div class="conflict-strategy">
                 <label for="conflictStrategy">⚖️ Conflict Resolution:</label>
                 <select id="conflictStrategy" onchange="setConflictResolutionStrategy(this.value)">
                     <option value="client-wins">Client Wins</option>
-                    <option value="server-wins">Server Wins</option>
+                    <option value="server-wins" selected>Server Wins (Step 2)</option>
                     <option value="merge">Merge</option>
                 </select>
+            </div>
+            <div class="sync-statistics hidden" id="syncStats">
+                <h4>📊 Sync Statistics</h4>
+                <div class="stats-grid">
+                    <div>Total Syncs: <span id="totalSyncs">0</span></div>
+                    <div>Conflicts Detected: <span id="conflictsCount">0</span></div>
+                    <div>Server Wins: <span id="serverWinsCount">0</span></div>
+                    <div>Data Changes: <span id="dataChangesCount">0</span></div>
+                </div>
             </div>
         </div>
 
@@ -356,6 +702,57 @@
             </div>
             <button onclick="addQuote()">✅ Save Quote</button>
             <button onclick="hideAddForm()">❌ Cancel</button>
+        </div>
+
+        <!-- Conflict Resolution Modal -->
+        <div class="conflict-modal hidden" id="conflictModal">
+            <div class="conflict-modal-content">
+                <div class="conflict-header">
+                    <h3>⚠️ Data Conflict Detected</h3>
+                    <button class="close-btn" onclick="closeConflictModal()">✕</button>
+                </div>
+                <div class="conflict-body">
+                    <p id="conflictMessage">Conflicts detected between local and server data.</p>
+                    <div class="conflict-options">
+                        <div class="conflict-preview">
+                            <div class="local-version">
+                                <h4>📱 Local Version</h4>
+                                <div id="localConflictData"></div>
+                            </div>
+                            <div class="server-version">
+                                <h4>🌐 Server Version</h4>
+                                <div id="serverConflictData"></div>
+                            </div>
+                        </div>
+                        <div class="manual-resolution">
+                            <h4>🛠️ Manual Resolution Options</h4>
+                            <button onclick="resolveConflictManually('keep-local')" class="resolution-btn local-btn">
+                                📱 Keep Local Version
+                            </button>
+                            <button onclick="resolveConflictManually('accept-server')" class="resolution-btn server-btn">
+                                🌐 Accept Server Version
+                            </button>
+                            <button onclick="resolveConflictManually('merge-both')" class="resolution-btn merge-btn">
+                                🔀 Merge Both Versions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Toast System -->
+        <div class="notification-container" id="notificationContainer"></div>
+
+        <!-- Conflict History Panel -->
+        <div class="conflict-history hidden" id="conflictHistory">
+            <div class="conflict-history-header">
+                <h4>📋 Recent Conflicts & Resolutions</h4>
+                <button onclick="toggleConflictHistory()" class="toggle-btn">Hide</button>
+            </div>
+            <div class="conflict-history-list" id="conflictHistoryList">
+                <p class="no-conflicts">No conflicts detected yet.</p>
+            </div>
         </div>
 
         <!-- Storage Information -->

@@ -169,25 +169,43 @@ function checkQuotesArrayStructure() {
 // 🌐 SERVER SYNCHRONIZATION FUNCTIONALITY
 // =====================================
 
+// Global variable to store pending conflicts for manual resolution
+let pendingConflicts = [];
+let conflictHistory = [];
+
 // Server configuration for JSONPlaceholder simulation
 const SERVER_CONFIG = {
     BASE_URL: 'https://jsonplaceholder.typicode.com',
     ENDPOINTS: {
         POSTS: '/posts',
-        USERS: '/users'
+        USERS: '/users',
+        COMMENTS: '/comments'
     },
-    SYNC_INTERVAL: 30000, // 30 seconds
-    TIMEOUT: 10000 // 10 seconds
+    SYNC_INTERVAL: 15000, // 15 seconds for more frequent sync
+    TIMEOUT: 10000, // 10 seconds
+    MAX_QUOTES_FROM_SERVER: 5, // Limit server quotes for demo
+    SYNC_CHECK_INTERVAL: 5000 // Check for sync every 5 seconds
 };
 
 // Global sync state
 let serverSyncState = {
     isOnline: navigator.onLine,
     lastSyncTime: null,
+    lastServerDataHash: null, // Track server data changes
     syncInterval: null,
+    syncCheckInterval: null, // For periodic sync checks
     pendingChanges: [],
-    conflictResolutionStrategy: 'client-wins', // 'client-wins', 'server-wins', 'merge'
-    isSyncing: false
+    conflictResolutionStrategy: 'server-wins', // Default to server-wins as requested
+    isSyncing: false,
+    serverDataCache: [], // Cache server data for comparison
+    syncStats: {
+        totalSyncs: 0,
+        successfulSyncs: 0,
+        failedSyncs: 0,
+        conflictsResolved: 0,
+        quotesFromServer: 0,
+        quotesToServer: 0
+    }
 };
 
 // 🌐 Initialize server synchronization
@@ -201,15 +219,26 @@ function initializeServerSync() {
     window.addEventListener('online', handleOnlineEvent);
     window.addEventListener('offline', handleOfflineEvent);
     
+    // Load conflict resolution strategy from storage (default to server-wins for Step 2)
+    const savedStrategy = localStorage.getItem('conflictResolution') || 'server-wins';
+    serverSyncState.conflictResolution = savedStrategy;
+    const strategySelect = document.getElementById('conflictStrategy');
+    if (strategySelect) {
+        strategySelect.value = savedStrategy;
+    }
+    
+    console.log(`🌐 Using conflict resolution strategy: ${savedStrategy} (Step 2: server data takes precedence)`);
+    
     // Start periodic sync if online
     if (serverSyncState.isOnline) {
         startPeriodicSync();
+        startDataSyncChecking(); // New: Continuous data checking
     }
     
     // Load server data on first run
     fetchDataFromServer();
     
-    console.log("✅ Server sync initialized");
+    console.log("✅ Server sync initialized with enhanced data syncing");
 }
 
 // 📡 Fetch data from server (simulate with JSONPlaceholder)
@@ -333,6 +362,20 @@ async function handleDataConflicts(serverQuotes) {
     
     const localQuotes = quotes.filter(q => q.source !== 'server');
     const conflictsDetected = [];
+    let mergeStrategy = serverSyncState.conflictResolution;
+    
+    // Generate server data hash for change detection
+    const serverDataHash = generateDataHash(serverQuotes);
+    const hasServerDataChanged = serverSyncState.lastServerDataHash !== serverDataHash;
+    
+    if (hasServerDataChanged) {
+        console.log("🔄 Server data has changed since last sync");
+        serverSyncState.lastServerDataHash = serverDataHash;
+        serverSyncState.syncStats.dataChangesDetected++;
+    }
+    
+    // Store server data in cache
+    serverSyncState.serverDataCache = serverQuotes;
     
     // Check for conflicts (same ID but different content)
     serverQuotes.forEach(serverQuote => {
@@ -353,6 +396,7 @@ async function handleDataConflicts(serverQuotes) {
     
     if (conflictsDetected.length > 0) {
         console.log(`⚠️ ${conflictsDetected.length} conflicts detected`);
+        serverSyncState.syncStats.conflictsDetected += conflictsDetected.length;
         await resolveConflicts(conflictsDetected);
     }
     
@@ -369,27 +413,98 @@ async function handleDataConflicts(serverQuotes) {
     console.log("✅ Data conflicts resolved and merged");
 }
 
+// 🔄 Start continuous data sync checking
+function startDataSyncChecking() {
+    if (serverSyncState.dataCheckInterval) {
+        clearInterval(serverSyncState.dataCheckInterval);
+    }
+    
+    serverSyncState.dataCheckInterval = setInterval(async () => {
+        if (serverSyncState.isOnline && !serverSyncState.isSyncing) {
+            console.log("🔍 Checking for server data changes...");
+            await checkServerDataChanges();
+        }
+    }, SERVER_CONFIG.SYNC_CHECK_INTERVAL);
+    
+    console.log(`🔄 Started data sync checking every ${SERVER_CONFIG.SYNC_CHECK_INTERVAL / 1000} seconds`);
+}
+
+// 🔍 Check for server data changes without full sync
+async function checkServerDataChanges() {
+    try {
+        const response = await fetch(`${SERVER_CONFIG.BASE_URL}${SERVER_CONFIG.ENDPOINTS.POSTS}`, {
+            method: 'HEAD', // Just check headers
+            signal: AbortSignal.timeout(5000) // Shorter timeout for checks
+        });
+        
+        if (response.ok) {
+            // Perform a quick data check
+            const quickResponse = await fetch(`${SERVER_CONFIG.BASE_URL}${SERVER_CONFIG.ENDPOINTS.POSTS}?_limit=1`, {
+                signal: AbortSignal.timeout(5000)
+            });
+            
+            if (quickResponse.ok) {
+                const quickData = await quickResponse.json();
+                const quickHash = generateDataHash(quickData);
+                
+                // Compare with stored hash to detect changes
+                if (serverSyncState.lastQuickHash && serverSyncState.lastQuickHash !== quickHash) {
+                    console.log("🔄 Server data changed - triggering sync...");
+                    await fetchDataFromServer();
+                }
+                
+                serverSyncState.lastQuickHash = quickHash;
+            }
+        }
+    } catch (error) {
+        console.log("🔍 Quick server check failed:", error.message);
+        // Don't show error to user for background checks
+    }
+}
+
+// 🔢 Generate hash for data comparison
+function generateDataHash(data) {
+    const dataString = JSON.stringify(data, Object.keys(data).sort());
+    let hash = 0;
+    
+    for (let i = 0; i < dataString.length; i++) {
+        const char = dataString.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    return hash.toString();
+}
+
 // 🔧 Resolve conflicts based on strategy
 async function resolveConflicts(conflicts) {
-    console.log(`🔧 Resolving ${conflicts.length} conflicts using strategy: ${serverSyncState.conflictResolutionStrategy}`);
+    console.log(`🔧 Resolving ${conflicts.length} conflicts using strategy: ${serverSyncState.conflictResolution}`);
     
     conflicts.forEach(conflict => {
         const { local, server } = conflict;
         
-        switch (serverSyncState.conflictResolutionStrategy) {
+        switch (serverSyncState.conflictResolution) {
             case 'client-wins':
                 console.log("📱 Client wins - keeping local version");
                 // Keep local version, mark server quote with different ID
                 server.id = `${server.id}_server_copy`;
+                serverSyncState.syncStats.clientWins++;
                 break;
                 
             case 'server-wins':
                 console.log("🌐 Server wins - accepting server version");
-                // Replace local with server version
+                // Replace local with server version (Step 2 requirement)
                 const localIndex = quotes.findIndex(q => q.id === local.id);
                 if (localIndex !== -1) {
-                    quotes[localIndex] = { ...server, id: local.id };
+                    quotes[localIndex] = { 
+                        ...server, 
+                        id: local.id, // Keep original local ID
+                        lastModified: new Date().toISOString(),
+                        resolvedConflict: true
+                    };
+                    console.log(`🌐 Server data takes precedence for quote: ${server.text.substring(0, 30)}...`);
                 }
+                serverSyncState.syncStats.serverWins++;
                 break;
                 
             case 'merge':
@@ -399,16 +514,20 @@ async function resolveConflicts(conflicts) {
                     ...local,
                     text: `${local.text} [Merged with: ${server.text}]`,
                     lastModified: new Date().toISOString(),
-                    mergedFrom: [local.id, server.id]
+                    mergedFrom: [local.id, server.id],
+                    resolvedConflict: true
                 };
                 
                 const mergeIndex = quotes.findIndex(q => q.id === local.id);
                 if (mergeIndex !== -1) {
                     quotes[mergeIndex] = mergedQuote;
                 }
+                serverSyncState.syncStats.merged++;
                 break;
         }
     });
+    
+    updateSyncStatus(`Resolved ${conflicts.length} conflicts using ${serverSyncState.conflictResolution} strategy`);
 }
 
 // 🔀 Merge server data with local data
@@ -538,8 +657,8 @@ function triggerManualSync() {
 // ⚙️ Change conflict resolution strategy
 function setConflictResolutionStrategy(strategy) {
     if (['client-wins', 'server-wins', 'merge'].includes(strategy)) {
-        serverSyncState.conflictResolutionStrategy = strategy;
-        localStorage.setItem('conflictResolutionStrategy', strategy);
+        serverSyncState.conflictResolution = strategy;
+        localStorage.setItem('conflictResolution', strategy);
         console.log(`⚙️ Conflict resolution strategy set to: ${strategy}`);
         showMessage(`Conflict resolution set to: ${strategy}`, "success");
     } else {
@@ -547,9 +666,36 @@ function setConflictResolutionStrategy(strategy) {
     }
 }
 
+// 📊 Display sync statistics
+function displaySyncStatistics() {
+    const statsDiv = document.getElementById('syncStats');
+    if (!statsDiv) return;
+    
+    // Update statistics display
+    const totalSyncsEl = document.getElementById('totalSyncs');
+    const conflictsCountEl = document.getElementById('conflictsCount');
+    const serverWinsCountEl = document.getElementById('serverWinsCount');
+    const dataChangesCountEl = document.getElementById('dataChangesCount');
+    
+    if (totalSyncsEl) totalSyncsEl.textContent = serverSyncState.syncStats.totalSyncs;
+    if (conflictsCountEl) conflictsCountEl.textContent = serverSyncState.syncStats.conflictsDetected;
+    if (serverWinsCountEl) serverWinsCountEl.textContent = serverSyncState.syncStats.serverWins;
+    if (dataChangesCountEl) dataChangesCountEl.textContent = serverSyncState.syncStats.dataChangesDetected;
+    
+    // Toggle visibility
+    if (statsDiv.classList.contains('hidden')) {
+        statsDiv.classList.remove('hidden');
+        console.log("📊 Displaying sync statistics");
+    } else {
+        statsDiv.classList.add('hidden');
+        console.log("📊 Hiding sync statistics");
+    }
+}
+}
+
 // 🚀 Initialize the app when page loads
 window.addEventListener('DOMContentLoaded', function() {
-    console.log("🚀 Initializing Quote Generator...");
+    console.log("🚀 Initializing Quote Generator with Step 3 conflict resolution...");
     loadQuotesFromStorage();
     updateDisplay();
     
@@ -559,14 +705,33 @@ window.addEventListener('DOMContentLoaded', function() {
     // Populate category dropdown
     populateCategories();
     
+    // Load conflict history from localStorage
+    const savedHistory = localStorage.getItem('conflictHistory');
+    if (savedHistory) {
+        try {
+            conflictHistory = JSON.parse(savedHistory);
+            console.log(`📋 Loaded ${conflictHistory.length} conflict history items`);
+        } catch (error) {
+            console.error("❌ Error loading conflict history:", error);
+            conflictHistory = [];
+        }
+    }
+    
     // Initialize server synchronization
     initializeServerSync();
     
     // Set up modern event listeners
     setupEventListeners();
     
-    showMessage("Welcome! App loaded successfully.", "success");
-    console.log("✅ Quote Generator initialized successfully");
+    // Show welcome notification using new system
+    showAdvancedNotification(
+        "Welcome to Quote Generator!",
+        "App loaded successfully with enhanced conflict resolution system.",
+        "success",
+        4000
+    );
+    
+    console.log("✅ Quote Generator initialized successfully with Step 3 features");
 });
 
 // 🎯 Set up modern event listeners (alternative to inline onclick)
@@ -1295,8 +1460,23 @@ function deleteQuote(index) {
     }
 }
 
-// 📝 Show messages to user
-function showMessage(message, type) {
+// 📝 Enhanced showMessage function with new notification system
+function showMessage(message, type = "info", useAdvanced = true) {
+    // Use new advanced notification system if available
+    if (useAdvanced && document.getElementById('notificationContainer')) {
+        const typeMapping = {
+            "error": "error",
+            "success": "success", 
+            "info": "info",
+            "warning": "warning"
+        };
+        
+        const title = type.charAt(0).toUpperCase() + type.slice(1);
+        showAdvancedNotification(title, message, typeMapping[type] || "info");
+        return;
+    }
+    
+    // Fallback to original implementation
     // Remove existing messages
     const existingMessages = document.querySelectorAll('.error, .success');
     existingMessages.forEach(msg => {
@@ -1352,6 +1532,460 @@ function inspectQuotesArray() {
 
 // Make inspection function available globally
 window.inspectQuotesArray = inspectQuotesArray;
+
+// 🔔 STEP 3: CONFLICT RESOLUTION & NOTIFICATION SYSTEM
+// ====================================================
+
+// 🔔 Enhanced notification system with multiple types
+function showAdvancedNotification(title, message, type = 'info', duration = 5000, actions = []) {
+    const container = document.getElementById('notificationContainer');
+    if (!container) return;
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    
+    const notificationId = Date.now().toString();
+    notification.setAttribute('data-id', notificationId);
+    
+    let actionsHTML = '';
+    if (actions.length > 0) {
+        actionsHTML = `
+            <div class="notification-actions">
+                ${actions.map(action => 
+                    `<button onclick="${action.callback}('${notificationId}')" class="notification-action-btn ${action.class || ''}">${action.text}</button>`
+                ).join('')}
+            </div>
+        `;
+    }
+    
+    notification.innerHTML = `
+        <div class="notification-title">
+            ${getNotificationIcon(type)} ${title}
+            <button class="notification-close" onclick="closeNotification('${notificationId}')">×</button>
+        </div>
+        <div class="notification-body">${message}</div>
+        ${actionsHTML}
+    `;
+    
+    container.appendChild(notification);
+    
+    // Auto-remove after duration (unless it's a conflict notification)
+    if (type !== 'conflict' && duration > 0) {
+        setTimeout(() => closeNotification(notificationId), duration);
+    }
+    
+    console.log(`🔔 Notification shown: ${type} - ${title}`);
+    return notificationId;
+}
+
+// 🎯 Get notification icon based on type
+function getNotificationIcon(type) {
+    const icons = {
+        info: 'ℹ️',
+        success: '✅',
+        warning: '⚠️',
+        error: '❌',
+        conflict: '⚔️',
+        sync: '🔄'
+    };
+    return icons[type] || 'ℹ️';
+}
+
+// ❌ Close notification
+function closeNotification(notificationId) {
+    const notification = document.querySelector(`[data-id="${notificationId}"]`);
+    if (notification) {
+        notification.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => notification.remove(), 300);
+    }
+}
+
+// ⚔️ Show conflict detection notification with manual resolution option
+function showConflictNotification(conflicts) {
+    const conflictCount = conflicts.length;
+    const actions = [
+        {
+            text: '🛠️ Resolve Manually',
+            callback: 'openConflictModal',
+            class: 'manual-resolve-btn'
+        },
+        {
+            text: '🌐 Auto-Resolve (Server Wins)',
+            callback: 'autoResolveConflicts',
+            class: 'auto-resolve-btn'
+        }
+    ];
+    
+    const notificationId = showAdvancedNotification(
+        'Data Conflicts Detected',
+        `Found ${conflictCount} conflict${conflictCount > 1 ? 's' : ''} between local and server data. Choose how to resolve them.`,
+        'conflict',
+        0, // Don't auto-dismiss conflict notifications
+        actions
+    );
+    
+    // Store conflicts for manual resolution
+    pendingConflicts = conflicts;
+    
+    return notificationId;
+}
+
+// 🛠️ Open conflict resolution modal
+function openConflictModal(notificationId = null) {
+    if (pendingConflicts.length === 0) {
+        showAdvancedNotification('No Conflicts', 'No pending conflicts to resolve.', 'info');
+        return;
+    }
+    
+    const modal = document.getElementById('conflictModal');
+    const conflictMessage = document.getElementById('conflictMessage');
+    const localData = document.getElementById('localConflictData');
+    const serverData = document.getElementById('serverConflictData');
+    
+    if (!modal) return;
+    
+    // Display first conflict (for simplicity, we'll handle one at a time)
+    const conflict = pendingConflicts[0];
+    
+    conflictMessage.textContent = `Conflict ${pendingConflicts.length > 1 ? '1 of ' + pendingConflicts.length : ''}: Different versions detected`;
+    
+    localData.innerHTML = `
+        <p><strong>Text:</strong> "${conflict.local.text}"</p>
+        <p><strong>Author:</strong> ${conflict.local.author}</p>
+        <p><strong>Category:</strong> ${conflict.local.category}</p>
+        <p><strong>Last Modified:</strong> ${conflict.local.lastModified || 'Unknown'}</p>
+    `;
+    
+    serverData.innerHTML = `
+        <p><strong>Text:</strong> "${conflict.server.text}"</p>
+        <p><strong>Author:</strong> ${conflict.server.author}</p>
+        <p><strong>Category:</strong> ${conflict.server.category}</p>
+        <p><strong>Source:</strong> Server</p>
+    `;
+    
+    modal.classList.remove('hidden');
+    
+    // Close the notification if provided
+    if (notificationId) {
+        closeNotification(notificationId);
+    }
+    
+    console.log("🛠️ Conflict resolution modal opened");
+}
+
+// ❌ Close conflict modal
+function closeConflictModal() {
+    const modal = document.getElementById('conflictModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    console.log("❌ Conflict resolution modal closed");
+}
+
+// 🔧 Manual conflict resolution
+function resolveConflictManually(resolution) {
+    if (pendingConflicts.length === 0) {
+        showAdvancedNotification('No Conflicts', 'No conflicts to resolve.', 'warning');
+        return;
+    }
+    
+    const conflict = pendingConflicts[0];
+    let resolvedQuote;
+    let resolutionMessage;
+    
+    switch (resolution) {
+        case 'keep-local':
+            resolvedQuote = conflict.local;
+            resolutionMessage = 'Local version kept';
+            console.log("📱 Manual resolution: Keeping local version");
+            break;
+            
+        case 'accept-server':
+            resolvedQuote = { ...conflict.server, id: conflict.local.id };
+            resolutionMessage = 'Server version accepted';
+            console.log("🌐 Manual resolution: Accepting server version");
+            break;
+            
+        case 'merge-both':
+            resolvedQuote = {
+                ...conflict.local,
+                text: `${conflict.local.text} [Merged with: ${conflict.server.text}]`,
+                lastModified: new Date().toISOString(),
+                mergedFrom: [conflict.local.id, conflict.server.id],
+                manuallyResolved: true
+            };
+            resolutionMessage = 'Versions merged manually';
+            console.log("🔀 Manual resolution: Merging both versions");
+            break;
+            
+        default:
+            console.error("❌ Invalid resolution type:", resolution);
+            return;
+    }
+    
+    // Apply the resolution
+    const quoteIndex = quotes.findIndex(q => q.id === conflict.local.id);
+    if (quoteIndex !== -1) {
+        quotes[quoteIndex] = resolvedQuote;
+    }
+    
+    // Add to conflict history
+    addToConflictHistory(conflict, resolution, resolutionMessage);
+    
+    // Remove from pending conflicts
+    pendingConflicts.shift();
+    
+    // Update storage and display
+    saveQuotesToStorage();
+    updateDisplay();
+    populateCategories();
+    
+    // Show success notification
+    showAdvancedNotification(
+        'Conflict Resolved',
+        `${resolutionMessage}. ${pendingConflicts.length} conflict${pendingConflicts.length !== 1 ? 's' : ''} remaining.`,
+        'success'
+    );
+    
+    // Close modal and handle remaining conflicts
+    closeConflictModal();
+    
+    if (pendingConflicts.length > 0) {
+        setTimeout(() => openConflictModal(), 500);
+    } else {
+        showAdvancedNotification('All Conflicts Resolved', 'All data conflicts have been successfully resolved.', 'success');
+    }
+}
+
+// 🤖 Auto-resolve all conflicts using server-wins strategy
+function autoResolveConflicts(notificationId = null) {
+    if (pendingConflicts.length === 0) {
+        showAdvancedNotification('No Conflicts', 'No conflicts to resolve.', 'warning');
+        return;
+    }
+    
+    const conflictCount = pendingConflicts.length;
+    
+    pendingConflicts.forEach(conflict => {
+        // Apply server-wins resolution
+        const quoteIndex = quotes.findIndex(q => q.id === conflict.local.id);
+        if (quoteIndex !== -1) {
+            quotes[quoteIndex] = { 
+                ...conflict.server, 
+                id: conflict.local.id,
+                autoResolved: true,
+                lastModified: new Date().toISOString()
+            };
+        }
+        
+        // Add to conflict history
+        addToConflictHistory(conflict, 'server-wins', 'Auto-resolved (server wins)');
+    });
+    
+    // Clear pending conflicts
+    pendingConflicts = [];
+    
+    // Update storage and display
+    saveQuotesToStorage();
+    updateDisplay();
+    populateCategories();
+    
+    // Update sync statistics
+    serverSyncState.syncStats.serverWins += conflictCount;
+    
+    // Close notification and show success
+    if (notificationId) {
+        closeNotification(notificationId);
+    }
+    
+    showAdvancedNotification(
+        'Conflicts Auto-Resolved',
+        `${conflictCount} conflict${conflictCount !== 1 ? 's' : ''} automatically resolved using server-wins strategy.`,
+        'success'
+    );
+    
+    console.log(`🤖 Auto-resolved ${conflictCount} conflicts using server-wins strategy`);
+}
+
+// 📋 Add conflict to history
+function addToConflictHistory(conflict, resolution, message) {
+    const historyItem = {
+        timestamp: new Date().toISOString(),
+        conflictType: conflict.type || 'content_conflict',
+        resolution: resolution,
+        message: message,
+        localQuote: {
+            text: conflict.local.text.substring(0, 50) + '...',
+            author: conflict.local.author
+        },
+        serverQuote: {
+            text: conflict.server.text.substring(0, 50) + '...',
+            author: conflict.server.author
+        }
+    };
+    
+    conflictHistory.unshift(historyItem);
+    
+    // Keep only last 20 conflicts
+    if (conflictHistory.length > 20) {
+        conflictHistory = conflictHistory.slice(0, 20);
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('conflictHistory', JSON.stringify(conflictHistory));
+    
+    console.log("📋 Added conflict to history:", historyItem);
+}
+
+// 📋 Toggle conflict history panel
+function toggleConflictHistory() {
+    const historyPanel = document.getElementById('conflictHistory');
+    if (!historyPanel) return;
+    
+    if (historyPanel.classList.contains('hidden')) {
+        // Load conflict history from storage
+        const savedHistory = localStorage.getItem('conflictHistory');
+        if (savedHistory) {
+            conflictHistory = JSON.parse(savedHistory);
+        }
+        
+        displayConflictHistory();
+        historyPanel.classList.remove('hidden');
+        
+        const toggleBtn = historyPanel.querySelector('.toggle-btn');
+        if (toggleBtn) toggleBtn.textContent = 'Hide';
+        
+        console.log("📋 Conflict history panel shown");
+    } else {
+        historyPanel.classList.add('hidden');
+        
+        const toggleBtn = historyPanel.querySelector('.toggle-btn');
+        if (toggleBtn) toggleBtn.textContent = 'Show';
+        
+        console.log("📋 Conflict history panel hidden");
+    }
+}
+
+// 📄 Display conflict history
+function displayConflictHistory() {
+    const historyList = document.getElementById('conflictHistoryList');
+    if (!historyList) return;
+    
+    if (conflictHistory.length === 0) {
+        historyList.innerHTML = '<p class="no-conflicts">No conflicts detected yet.</p>';
+        return;
+    }
+    
+    const historyHTML = conflictHistory.map((item, index) => `
+        <div class="conflict-item">
+            <div class="conflict-item-header">
+                Conflict #${conflictHistory.length - index} - ${item.resolution.replace('-', ' ').toUpperCase()}
+            </div>
+            <div class="conflict-item-details">
+                <strong>When:</strong> ${new Date(item.timestamp).toLocaleString()}<br>
+                <strong>Resolution:</strong> ${item.message}<br>
+                <strong>Local:</strong> "${item.localQuote.text}" by ${item.localQuote.author}<br>
+                <strong>Server:</strong> "${item.serverQuote.text}" by ${item.serverQuote.author}
+            </div>
+        </div>
+    `).join('');
+    
+    historyList.innerHTML = historyHTML;
+}
+
+// 🔄 Override the existing handleDataConflicts to use new notification system
+async function handleDataConflictsWithNotifications(serverQuotes) {
+    console.log("⚖️ Checking for data conflicts with notification support...");
+    
+    const localQuotes = quotes.filter(q => q.source !== 'server');
+    const conflictsDetected = [];
+    let mergeStrategy = serverSyncState.conflictResolution;
+    
+    // Generate server data hash for change detection
+    const serverDataHash = generateDataHash(serverQuotes);
+    const hasServerDataChanged = serverSyncState.lastServerDataHash !== serverDataHash;
+    
+    if (hasServerDataChanged) {
+        console.log("🔄 Server data has changed since last sync");
+        serverSyncState.lastServerDataHash = serverDataHash;
+        serverSyncState.syncStats.dataChangesDetected++;
+        
+        // Show notification about server data changes
+        showAdvancedNotification(
+            'Server Data Updated',
+            'New data detected on server. Checking for conflicts...',
+            'sync',
+            3000
+        );
+    }
+    
+    // Store server data in cache
+    serverSyncState.serverDataCache = serverQuotes;
+    
+    // Check for conflicts (same ID but different content)
+    serverQuotes.forEach(serverQuote => {
+        const localQuote = quotes.find(q => q.id === serverQuote.id || q.serverId === serverQuote.serverId);
+        
+        if (localQuote && (
+            localQuote.text !== serverQuote.text ||
+            localQuote.author !== serverQuote.author ||
+            localQuote.category !== serverQuote.category
+        )) {
+            conflictsDetected.push({
+                local: localQuote,
+                server: serverQuote,
+                type: 'content_conflict'
+            });
+        }
+    });
+    
+    if (conflictsDetected.length > 0) {
+        console.log(`⚠️ ${conflictsDetected.length} conflicts detected`);
+        serverSyncState.syncStats.conflictsDetected += conflictsDetected.length;
+        
+        // Show conflict notification with resolution options
+        showConflictNotification(conflictsDetected);
+        
+        // If auto-resolution is enabled (server-wins), resolve automatically after a delay
+        if (mergeStrategy === 'server-wins') {
+            setTimeout(() => {
+                if (pendingConflicts.length > 0) {
+                    showAdvancedNotification(
+                        'Auto-Resolving Conflicts',
+                        'Using server-wins strategy as configured...',
+                        'info',
+                        2000
+                    );
+                    setTimeout(() => autoResolveConflicts(), 2000);
+                }
+            }, 3000);
+        }
+    } else {
+        // No conflicts - show success notification
+        showAdvancedNotification(
+            'Sync Completed',
+            'Data synchronized successfully with no conflicts.',
+            'success',
+            3000
+        );
+    }
+    
+    // Merge server quotes (non-conflicting ones)
+    const mergedQuotes = await mergeServerData(serverQuotes);
+    
+    // Update local storage
+    saveQuotesToStorage();
+    
+    // Refresh display
+    populateCategories();
+    updateDisplay();
+    
+    console.log("✅ Data conflicts handled with notifications");
+}
+
+// Replace the original handleDataConflicts function call
+const originalHandleDataConflicts = handleDataConflicts;
+handleDataConflicts = handleDataConflictsWithNotifications;
 
 // 🎯 LEARNING NOTES:
 // This file demonstrates key DOM manipulation concepts:
