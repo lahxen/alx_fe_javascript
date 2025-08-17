@@ -91,7 +91,7 @@ function checkQuotesArrayStructure() {
 }
 
 // 🚀 Initialize the app when page loads
-window.onload = function() {
+window.addEventListener('DOMContentLoaded', function() {
     console.log("🚀 Initializing Quote Generator...");
     loadQuotesFromStorage();
     updateDisplay();
@@ -99,9 +99,81 @@ window.onload = function() {
     // Check quotes array structure
     checkQuotesArrayStructure();
     
+    // Set up modern event listeners
+    setupEventListeners();
+    
     showMessage("Welcome! App loaded successfully.", "success");
     console.log("✅ Quote Generator initialized successfully");
-};
+});
+
+// 🎯 Set up modern event listeners (alternative to inline onclick)
+function setupEventListeners() {
+    // Get buttons and add event listeners
+    const randomQuoteBtn = document.querySelector('button[onclick*="getRandomQuote"]');
+    const addQuoteBtn = document.querySelector('button[onclick*="showAddForm"]');
+    const exportBtn = document.querySelector('button[onclick*="exportQuotes"]');
+    const clearBtn = document.querySelector('button[onclick*="clearAllQuotes"]');
+    
+    // Add event listeners if buttons exist (as backup to inline handlers)
+    if (randomQuoteBtn) {
+        randomQuoteBtn.addEventListener('click', function(e) {
+            console.log("🎲 Random quote button clicked via addEventListener");
+            // onclick handler will still fire, but this demonstrates addEventListener
+        });
+    }
+    
+    if (addQuoteBtn) {
+        addQuoteBtn.addEventListener('click', function(e) {
+            console.log("➕ Add quote button clicked via addEventListener");
+        });
+    }
+    
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function(e) {
+            console.log("💾 Export button clicked via addEventListener");
+        });
+    }
+    
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function(e) {
+            console.log("🗑️ Clear button clicked via addEventListener");
+        });
+    }
+    
+    // Add keyboard shortcuts using addEventListener
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + R for random quote
+        if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+            e.preventDefault();
+            getRandomQuote();
+            console.log("⌨️ Keyboard shortcut: Random quote (Ctrl+R)");
+        }
+        
+        // Ctrl/Cmd + A for add quote
+        if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+            e.preventDefault();
+            showAddForm();
+            console.log("⌨️ Keyboard shortcut: Add quote (Ctrl+A)");
+        }
+        
+        // Escape to hide form
+        if (e.key === 'Escape') {
+            const form = document.getElementById('addQuoteForm');
+            if (form && form.style.display !== 'none') {
+                hideAddForm();
+                console.log("⌨️ Keyboard shortcut: Hide form (Escape)");
+            }
+        }
+    });
+    
+    // Add window resize listener
+    window.addEventListener('resize', function() {
+        console.log("📱 Window resized, checking responsive layout");
+        // Could add responsive adjustments here
+    });
+    
+    console.log("🎯 Event listeners set up successfully");
+}
 
 // 🎲 Get a random quote and display it
 function getRandomQuote() {
@@ -212,6 +284,101 @@ function createAddQuoteForm() {
     
     console.log("✅ Add quote form created dynamically");
     updateLastAction("Created add quote form");
+}
+
+// 🎯 Example function: Create buttons with addEventListener (educational)
+function createButtonWithEventListener(text, clickHandler, className = '') {
+    // Create button element
+    const button = document.createElement('button');
+    button.textContent = text;
+    
+    // Add CSS class if provided
+    if (className) {
+        button.className = className;
+    }
+    
+    // Use addEventListener instead of onclick
+    button.addEventListener('click', function(event) {
+        console.log(`🎯 Button "${text}" clicked via addEventListener`);
+        
+        // Call the provided handler function
+        if (typeof clickHandler === 'function') {
+            clickHandler(event);
+        }
+    });
+    
+    // Add hover effect with addEventListener
+    button.addEventListener('mouseenter', function() {
+        button.style.transform = 'scale(1.05)';
+        console.log(`🐭 Mouse entered button: ${text}`);
+    });
+    
+    button.addEventListener('mouseleave', function() {
+        button.style.transform = 'scale(1)';
+        console.log(`🐭 Mouse left button: ${text}`);
+    });
+    
+    return button;
+}
+
+// 🎨 Create enhanced form with addEventListener
+function createEnhancedAddForm() {
+    // Check if enhanced form already exists
+    if (document.getElementById('enhancedAddForm')) {
+        console.log("Enhanced form already exists");
+        return;
+    }
+    
+    // Create form container
+    const formContainer = document.createElement('div');
+    formContainer.id = 'enhancedAddForm';
+    formContainer.className = 'add-quote hidden';
+    
+    // Create form title
+    const title = document.createElement('h3');
+    title.textContent = '✨ Enhanced Add Quote Form (with addEventListener)';
+    formContainer.appendChild(title);
+    
+    // Create input elements with addEventListener
+    const quoteInput = document.createElement('textarea');
+    quoteInput.id = 'enhancedQuoteText';
+    quoteInput.placeholder = 'Enter your quote here...';
+    
+    // Add real-time character count with addEventListener
+    const charCount = document.createElement('div');
+    charCount.style.fontSize = '0.9rem';
+    charCount.style.color = '#666';
+    charCount.textContent = '0 characters';
+    
+    quoteInput.addEventListener('input', function() {
+        const length = quoteInput.value.length;
+        charCount.textContent = `${length} characters`;
+        charCount.style.color = length > 200 ? '#dc3545' : '#666';
+    });
+    
+    // Create buttons with addEventListener
+    const saveBtn = createButtonWithEventListener('💾 Save Quote', function() {
+        console.log("Enhanced save button clicked!");
+        // Could call addQuote() or enhanced version
+    });
+    
+    const cancelBtn = createButtonWithEventListener('❌ Cancel', function() {
+        formContainer.style.display = 'none';
+    });
+    
+    // Append elements
+    formContainer.appendChild(quoteInput);
+    formContainer.appendChild(charCount);
+    formContainer.appendChild(saveBtn);
+    formContainer.appendChild(cancelBtn);
+    
+    // Add to page
+    const container = document.querySelector('.container');
+    if (container) {
+        container.appendChild(formContainer);
+    }
+    
+    console.log("✨ Enhanced form with addEventListener created");
 }
 
 // ➕ Show the add quote form
@@ -601,7 +768,12 @@ window.inspectQuotesArray = inspectQuotesArray;
 // 6. document.createElement() - Creating new elements
 // 7. element.appendChild() - Adding elements to DOM
 // 8. localStorage/sessionStorage - Browser storage
-// 9. Event handling with onclick
+// 9. Event handling with onclick AND addEventListener
 // 10. File API for reading uploaded files
 // 11. Array methods for data manipulation
 // 12. Object property checking and validation
+// 13. Modern event handling with addEventListener
+// 14. Keyboard shortcuts and event listeners
+// 15. DOMContentLoaded vs window.onload
+// 16. Event object and preventDefault()
+// 17. Dynamic button creation with event listeners
