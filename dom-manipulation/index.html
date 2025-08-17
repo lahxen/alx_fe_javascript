@@ -179,6 +179,35 @@
             display: none;
         }
 
+        .filter-section {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .filter-label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        #categoryFilter {
+            padding: 8px 15px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        #categoryFilter:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        #filterStatus {
+            margin-left: 15px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
         .storage-info {
             background: #e8f5e8;
             padding: 15px;
@@ -229,6 +258,16 @@
             <button onclick="document.getElementById('fileInput').click()">📁 Import Quotes</button>
             <button onclick="clearAllQuotes()">🗑️ Clear All</button>
             <button onclick="inspectQuotesArray()">🔍 Inspect Array</button>
+        </div>
+
+        <!-- Category Filter Dropdown -->
+        <div class="filter-section">
+            <label for="categoryFilter" class="filter-label">🏷️ Filter by Category:</label>
+            <select id="categoryFilter" onchange="filterQuotes()">
+                <option value="all">All Categories</option>
+                <!-- Dynamically populated categories -->
+            </select>
+            <span id="filterStatus"></span>
         </div>
 
         <!-- Categories Display -->

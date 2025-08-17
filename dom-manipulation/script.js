@@ -99,6 +99,9 @@ window.addEventListener('DOMContentLoaded', function() {
     // Check quotes array structure
     checkQuotesArrayStructure();
     
+    // Populate category dropdown
+    populateCategories();
+    
     // Set up modern event listeners
     setupEventListeners();
     
@@ -236,6 +239,105 @@ function getRandomQuoteByCategory(category) {
     
     updateLastAction(`Showed ${category} quote`);
     console.log(`🎯 Category quote displayed (${category}):`, selectedQuote);
+}
+
+// 🏷️ Populate categories dropdown dynamically
+function populateCategories() {
+    const categoryFilter = document.getElementById('categoryFilter');
+    if (!categoryFilter) return;
+    
+    // Extract unique categories from quotes
+    const categories = [...new Set(quotes
+        .filter(quote => quote.category && quote.category.trim() !== '')
+        .map(quote => quote.category.toLowerCase())
+    )].sort();
+    
+    // Clear existing options except "All Categories"
+    const allOption = categoryFilter.querySelector('option[value="all"]');
+    categoryFilter.innerHTML = '';
+    categoryFilter.appendChild(allOption);
+    
+    // Add category options
+    categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+        categoryFilter.appendChild(option);
+    });
+    
+    // Restore last selected filter from localStorage
+    const lastFilter = localStorage.getItem('lastCategoryFilter');
+    if (lastFilter && categoryFilter.querySelector(`option[value="${lastFilter}"]`)) {
+        categoryFilter.value = lastFilter;
+        filterQuotes(); // Apply the saved filter
+    }
+    
+    console.log(`🏷️ Populated ${categories.length} categories in dropdown`);
+}
+
+// 🔍 Filter quotes based on selected category
+function filterQuotes() {
+    const categoryFilter = document.getElementById('categoryFilter');
+    const filterStatus = document.getElementById('filterStatus');
+    
+    if (!categoryFilter) return;
+    
+    const selectedCategory = categoryFilter.value;
+    
+    // Save the selected filter to localStorage
+    localStorage.setItem('lastCategoryFilter', selectedCategory);
+    
+    let filteredQuotes;
+    
+    if (selectedCategory === 'all') {
+        filteredQuotes = quotes;
+        filterStatus.textContent = `Showing all ${quotes.length} quotes`;
+    } else {
+        filteredQuotes = quotes.filter(quote => 
+            quote.category && quote.category.toLowerCase() === selectedCategory.toLowerCase()
+        );
+        const categoryName = selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1);
+        filterStatus.textContent = `Showing ${filteredQuotes.length} quotes in "${categoryName}"`;
+    }
+    
+    // Update the displayed quotes list
+    updateDisplayWithFilteredQuotes(filteredQuotes);
+    
+    console.log(`🔍 Filtered quotes: ${filteredQuotes.length} out of ${quotes.length} total`);
+    updateLastAction(`Filtered by category: ${selectedCategory}`);
+}
+
+// 📋 Update display with filtered quotes
+function updateDisplayWithFilteredQuotes(filteredQuotes) {
+    const allQuotesDiv = document.getElementById('allQuotes');
+    
+    if (!allQuotesDiv) return;
+    
+    if (filteredQuotes.length === 0) {
+        allQuotesDiv.innerHTML = '<p style="text-align: center; color: #666;">No quotes found for the selected category.</p>';
+        return;
+    }
+    
+    // Create HTML for filtered quotes
+    let quotesHTML = '';
+    filteredQuotes.forEach((quote, originalIndex) => {
+        // Find original index in the full quotes array
+        const realIndex = quotes.findIndex(q => q === quote);
+        
+        quotesHTML += `
+            <div class="quote-item">
+                <div class="quote-text">"${quote.text}"</div>
+                <div class="quote-author">- ${quote.author}</div>
+                <div class="quote-category">Category: ${quote.category || 'Uncategorized'}</div>
+                <div class="quote-actions">
+                    <button onclick="showSpecificQuote(${realIndex})" style="margin: 5px; padding: 5px 10px; font-size: 0.9rem;">Show This Quote</button>
+                    <button onclick="deleteQuote(${realIndex})" style="margin: 5px; padding: 5px 10px; font-size: 0.9rem; background: #dc3545;">Delete</button>
+                </div>
+            </div>
+        `;
+    });
+    
+    allQuotesDiv.innerHTML = quotesHTML;
 }
 
 // 🔨 Create the add quote form dynamically
@@ -433,6 +535,9 @@ function addQuote() {
     // Save to localStorage (persistent storage)
     saveQuotesToStorage();
     
+    // Update categories dropdown if new category was added
+    populateCategories();
+    
     // Update the display
     updateDisplay();
     hideAddForm();
@@ -552,6 +657,10 @@ function importQuotes(event) {
             quotes.push(...importedQuotes);
             
             saveQuotesToStorage();
+            
+            // Update categories dropdown with potentially new categories
+            populateCategories();
+            
             updateDisplay();
             
             showMessage(`Imported ${importedQuotes.length} quotes! Total: ${quotes.length}`, "success");
@@ -617,7 +726,15 @@ function updateDisplay() {
     // Update categories display
     updateCategoriesDisplay();
 
-    // Update all quotes display
+    // Check if there's an active filter
+    const categoryFilter = document.getElementById('categoryFilter');
+    if (categoryFilter && categoryFilter.value && categoryFilter.value !== 'all') {
+        // Apply current filter instead of showing all quotes
+        filterQuotes();
+        return;
+    }
+
+    // Update all quotes display (no filter active)
     const allQuotesDiv = document.getElementById('allQuotes');
     
     if (quotes.length === 0) {
